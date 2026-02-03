@@ -1,14 +1,16 @@
 services:
   postgres:
-    image: "postgres"
+    image: "postgres:16"
     environment:
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=root
       - POSTGRES_DB=root
     ports:
-      - 5432:5432
+      - 5433:5432
     volumes:
-      - ./postgres-data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql
+    networks:
+      - backend
 
   app:
     image: golang:1.22
@@ -17,15 +19,24 @@ services:
       - run
       - main.go
     volumes:
-      - ./:/app
+      - .:/app
     working_dir: /app
     ports:
       - 8080:8080
     depends_on:
       - postgres
     environment:
-      - DB_HOST=localhost
+      - DB_HOST=postgres
       - DB_USER=root
       - DB_PASSWORD=root
       - DB_NAME=root
       - DB_PORT=5432
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  pgdata:
