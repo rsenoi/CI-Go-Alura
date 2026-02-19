@@ -1,6 +1,3 @@
-# This workflow will build a golang project
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-go
-
 name: Integracao_Continua
 
 on:
@@ -10,37 +7,69 @@ on:
     branches: [ "main" ]
 
 jobs:
-
-  ci:
+  ci-cd:
     runs-on: ubuntu-latest
+    
+    # Definindo variáveis de ambiente reutilizáveis
+    env:
+      AWS_REGION: us-east-1
+      ECR_REPOSITORY: servico01
+      AWS_ACCOUNT_ID: 501187947657
+
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4 
 
     - name: Set up Go
-      uses: actions/setup-go@v4
+      uses: actions/setup-go@v4 
       with:
-        go-version: '1.22'
+        go-version: '1.22' 
 
     - name: Inicia BD
-      run: docker compose up -d postgres
+      run: docker compose up -d postgres 
 
     - name: Lint
-<<<<<<< HEAD
       uses: golangci/golangci-lint-action@v6 
       with:
-        version: v1.59
-        args: controllers/ database/ models/ routes/
+        version: v1.59 
+        args: controllers/ database/ models/ routes/ 
 
     - name: Test
-      run: DB_HOST=${{ secrets.DB_HOST }} DB_PASSWORD=${{ secrets.DB_PASSWORD }}  DB_USER=${{ secrets.DB_USER }} DB_NAME=${{ secrets.DB_NAME }}  DB_PORT=${{ secrets.DB_PORT }}    go test -v main_test.go
-      
-=======
-      run: docker run --rm -itv $(pwd):/app -w /app golangci/golangci-lint golangci-lint run controllers/ database/ models/ routes/
+      run: go test -v main_test.go 
+      env:
+        DB_HOST: ${{ secrets.DB_HOST }} 
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }} 
+        DB_USER: ${{ secrets.DB_USER }} 
+        DB_NAME: ${{ secrets.DB_NAME }} 
+        DB_PORT: ${{ secrets.DB_PORT }} 
 
-    - name: Test
-      run: go test -v main_test.go
-      
+    - name: Build Local (Check)
+      run: go build main.go 
 
-    - name: Test
-      run: go test -v ./...
->>>>>>> 2528284 (Teste de pipeline 1)
+    # --- INÍCIO DA ETAPA DE DEPLOY (ECR) ---
+    
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, tag, and push image to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # Build da imagem Docker usando o commit SHA como tag
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+        
+        # Tag adicional como 'latest' para conveniência
+        docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        
+        # Push de ambas as tags para o ECR
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
