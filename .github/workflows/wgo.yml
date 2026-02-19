@@ -10,43 +10,41 @@ jobs:
   ci-cd:
     runs-on: ubuntu-latest
     
-    # Definindo variáveis de ambiente reutilizáveis
     env:
       AWS_REGION: us-east-1
       ECR_REPOSITORY: servico01
-      AWS_ACCOUNT_ID: 501187947657
+      # Recomendo mover o ID da conta para um Secret: ${{ secrets.AWS_ACCOUNT_ID }}
+      AWS_ACCOUNT_ID: 501187947657 
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4 
+      uses: actions/checkout@v4
 
     - name: Set up Go
-      uses: actions/setup-go@v4 
+      uses: actions/setup-go@v4
       with:
-        go-version: '1.22' 
+        go-version: '1.22'
 
-    - name: Inicia BD
+    - name: Inicia BD para Testes
+      # Usa a imagem postgres:16 definida no seu docker-compose.txt
       run: docker compose up -d postgres 
 
     - name: Lint
-      uses: golangci/golangci-lint-action@v6 
+      uses: golangci/golangci-lint-action@v6
       with:
-        version: v1.59 
-        args: controllers/ database/ models/ routes/ 
+        version: v1.59
+        args: controllers/ database/ models/ routes/
 
     - name: Test
-      run: go test -v main_test.go 
+      run: go test -v main_test.go
       env:
-        DB_HOST: ${{ secrets.DB_HOST }} 
-        DB_PASSWORD: ${{ secrets.DB_PASSWORD }} 
-        DB_USER: ${{ secrets.DB_USER }} 
-        DB_NAME: ${{ secrets.DB_NAME }} 
-        DB_PORT: ${{ secrets.DB_PORT }} 
+        DB_HOST: ${{ secrets.DB_HOST }}
+        DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        DB_USER: ${{ secrets.DB_USER }}
+        DB_NAME: ${{ secrets.DB_NAME }}
+        DB_PORT: ${{ secrets.DB_PORT }}
 
-    - name: Build Local (Check)
-      run: go build main.go 
-
-    # --- INÍCIO DA ETAPA DE DEPLOY (ECR) ---
+    # --- ETAPA DE PUBLICAÇÃO NO ECR ---
     
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
@@ -59,17 +57,14 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    - name: Build, tag, and push image to Amazon ECR
+    - name: Build and Push Image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        # Build da imagem Docker usando o commit SHA como tag
-        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
-        
-        # Tag adicional como 'latest' para conveniência
+        # O Docker usará o seu Dockerfile.txt automaticamente
+        docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f Dockerfile
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
         
-        # Push de ambas as tags para o ECR
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
         docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
