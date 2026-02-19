@@ -25,6 +25,7 @@ jobs:
       run: docker compose up -d postgres
 
     - name: Lint
+<<<<<<< HEAD
       uses: golangci/golangci-lint-action@v6 
       with:
         version: v1.59
@@ -33,3 +34,13 @@ jobs:
     - name: Test
       run: DB_HOST=${{ secrets.DB_HOST }} DB_PASSWORD=${{ secrets.DB_PASSWORD }}  DB_USER=${{ secrets.DB_USER }} DB_NAME=${{ secrets.DB_NAME }}  DB_PORT=${{ secrets.DB_PORT }}    go test -v main_test.go
       
+=======
+      run: docker run --rm -itv $(pwd):/app -w /app golangci/golangci-lint golangci-lint run controllers/ database/ models/ routes/
+
+    - name: Test
+      run: go test -v main_test.go
+      
+
+    - name: Test
+      run: go test -v ./...
+>>>>>>> 2528284 (Teste de pipeline 1)
