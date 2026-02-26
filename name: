@@ -1,6 +1,5 @@
-name: Integracao_Continua
 
-on:
+n:
   push:
     branches: [ "main" ]
   pull_request:
@@ -88,6 +87,5 @@ jobs:
         cluster: CT-Servico01
         wait-for-service-stability: true
 
-        
 
 
