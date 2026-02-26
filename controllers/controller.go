@@ -11,7 +11,7 @@ import (
 func Saudacoes(c *gin.Context) {
 	nome := c.Params.ByName("nome")
 	c.JSON(200, gin.H{
-		"Atualizacao 02 - API diz": "E aí, " + nome + ". Tudo beleza?",
+		"API diz": "E aí, " + nome + ". Tudo beleza? Teste 01",
 	})
 }
 
