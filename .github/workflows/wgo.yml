@@ -1,40 +1,47 @@
+# Nome que aparecerá na aba 'Actions' do GitHub
 name: Integracao_Continua
 
+# Define quando o robô da pipeline deve trabalhar
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" ] # Roda sempre que houver código novo na main
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main" ] # Roda quando alguém tentar enviar código para a main
 
 jobs:
   ci-cd:
+    # Máquina virtual que o GitHub vai nos emprestar (Linux Ubuntu)
     runs-on: ubuntu-latest
     
+    # Variáveis globais para não precisarmos digitar a mesma coisa várias vezes
     env:
       AWS_REGION: us-east-1
       ECR_REPOSITORY: servico01
-      # Recomendo mover o ID da conta para um Secret: ${{ secrets.AWS_ACCOUNT_ID }}
       AWS_ACCOUNT_ID: 501187947657 
 
     steps:
+    # 1. Pega o código que você acabou de enviar (Git Checkout)
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # 2. Instala o Go na máquina virtual para podermos rodar testes e compilar
     - name: Set up Go
       uses: actions/setup-go@v4
       with:
         go-version: '1.22'
 
+    # 3. Sobe um banco de dados temporário só para os testes passarem
     - name: Inicia BD para Testes
-      # Usa a imagem postgres:16 definida no seu docker-compose.txt
       run: docker compose up -d postgres 
 
+    # 4. Verifica se o código está bem escrito e segue as boas práticas (Lint)
     - name: Lint
       uses: golangci/golangci-lint-action@v6
       with:
         version: v1.59
         args: controllers/ database/ models/ routes/
 
+    # 5. Roda os testes unitários da aplicação
     - name: Test
       run: go test -v main_test.go
       env:
@@ -44,8 +51,9 @@ jobs:
         DB_NAME: ${{ secrets.DB_NAME }}
         DB_PORT: ${{ secrets.DB_PORT }}
 
-    # --- ETAPA DE PUBLICAÇÃO NO ECR ---
+    # --- ETAPA DE PUBLICAÇÃO NA NUVEM (AWS) ---
     
+    # 6. Fornece as chaves de acesso (Secrets) para a pipeline falar com a AWS
     - name: Configure AWS credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -53,25 +61,28 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
 
+    # 7. Faz o login no ECR (nosso armazém de imagens Docker)
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
+    # 8. Transforma o código em uma imagem Docker e envia para a AWS
     - name: Build and Push Image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
+        IMAGE_TAG: ${{ github.sha }} # Usa o ID único do commit como versão
       run: |
-        # Garantindo que o contexto (.) esteja explícito e o arquivo correto indicado
+        # Gera a imagem baseada no Dockerfile
         docker build -t ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} -f Dockerfile .
         
-        # Criando a tag latest
+        # Cria uma cópia com a tag 'latest' (mais recente)
         docker tag ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }} ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
         
-        # Push das imagens
+        # Envia as duas para a nuvem
         docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
         docker push ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:latest
 
+    # 9. Atualiza o arquivo de definição de tarefa do ECS com a nova imagem
     - name: Fill in the new image ID in the Amazon ECS task definition
       id: task-def
       uses: aws-actions/amazon-ecs-render-task-definition@v1
@@ -80,14 +91,11 @@ jobs:
         container-name: servico01
         image: ${{ steps.login-ecr.outputs.registry }}/servico01:${{ github.sha }}
 
+    # 10. DIZ AO ECS: "Atualize o servidor com a imagem que acabei de subir!"
     - name: Deploy to Amazon ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
-        task-definition-family: familia-tarefe-servico01
-        service: servico01-service # Nome exato do serviço no ECS
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: servico01-service
         cluster: CT-Servico01
         wait-for-service-stability: true
-
-        
-
-
