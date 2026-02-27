@@ -13,7 +13,29 @@
                     "protocol": "tcp"
                 }
             ],
-            "essential": true
+            "essential": true,
+            "environment": [
+                {
+                    "name": "DB_HOST",
+                    "value": "bdservico01.cwvac0a2oepv.us-east-1.rds.amazonaws.com"
+                },
+                {
+                    "name": "DB_USER",
+                    "value": "postgres"
+                },
+                {
+                    "name": "DB_PASSWORD",
+                    "value": "Mydb123Mydb"
+                },
+                {
+                    "name": "DB_NAME",
+                    "value": "postgres"
+                },
+                {
+                    "name": "DB_PORT",
+                    "value": "5432"
+                }
+            ]
         }
     ],
     "requiresCompatibilities": [

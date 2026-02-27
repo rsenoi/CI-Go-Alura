@@ -92,10 +92,12 @@ jobs:
         image: ${{ steps.login-ecr.outputs.registry }}/servico01:${{ github.sha }}
 
     # 10. DIZ AO ECS: "Atualize o servidor com a imagem que acabei de subir!"
+# 10. Deploy para o Amazon ECS
     - name: Deploy to Amazon ECS
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: servico01-service  # <--- Verifique se este nome existe na AWS
-        cluster: CT-Servico01       # <--- Verifique se este cluster existe na AWS
+        service: servico01-service  # <--- Nome exato da imagem 7.PNG
+        cluster: CT-Servico01
         wait-for-service-stability: true
+        
