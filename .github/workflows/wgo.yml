@@ -96,6 +96,6 @@ jobs:
       uses: aws-actions/amazon-ecs-deploy-task-definition@v1
       with:
         task-definition: ${{ steps.task-def.outputs.task-definition }}
-        service: servico01-service
-        cluster: CT-Servico01
+        service: task-servico01     # <--- Verifique se este nome existe na AWS
+        cluster: CT-Servico01       # <--- Verifique se este cluster existe na AWS
         wait-for-service-stability: true
