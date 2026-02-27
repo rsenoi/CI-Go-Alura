@@ -1,0 +1,23 @@
+{
+    "family": "task-servico01",
+    "containerDefinitions": [
+        {
+            "name": "servico01",
+            "image": "servico01",
+            "cpu": 128,
+            "memory": 512,
+            "portMappings": [
+                {
+                    "containerPort": 8080,
+                    "hostPort": 0,
+                    "protocol": "tcp"
+                }
+            ],
+            "essential": true
+        }
+    ],
+    "requiresCompatibilities": [
+        "EC2"
+    ],
+    "networkMode": "bridge"
+}
